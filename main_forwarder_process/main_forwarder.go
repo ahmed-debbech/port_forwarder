@@ -10,6 +10,15 @@ import (
 	"os/exec"
 )
 
+
+var (
+	path string
+	secretPin string
+	joiningHosts []string
+)
+
+
+
 func ReadFile(ch chan []string){
 
 	for {
@@ -99,7 +108,7 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 func runCommand(command Ports, activePorts []Ports){
 	log.Println(command.PortNumber, "new port to open")
 
-	cmd := exec.Command("/home/ubuntu/forwarder/port_forwarder.sh", fmt.Sprintf("0.0.0.0:%s", command.PortNumber), fmt.Sprintf("%s:%s", command.HostIp, command.PortNumber))
+	cmd := exec.Command(path, fmt.Sprintf("0.0.0.0:%s", command.PortNumber), fmt.Sprintf("%s:%s", command.HostIp, command.PortNumber))
 
 	for k:=0; k<=len(activePorts)-1; k++{
 		if activePorts[k].PortNumber == command.PortNumber {
@@ -128,27 +137,50 @@ func runCommand(command Ports, activePorts []Ports){
 	//log.Println(string(cmdBytes))	
 }
 
-var (
-	path string
-)
+func ListenForJoiningHosts(ch chan string){
+
+	for {
+		
+		ip := <- ch
+		
+		found := false
+		for i:=0; i<=len(joiningHosts)-1; i++ {
+			if joiningHosts[i] == ip {
+				found = true
+				break
+			}
+		}
+		if !found {
+			joiningHosts = append(joiningHosts, ip)  
+		}
+		
+		log.Println("current joined hosts", joiningHosts)
+	}
+}
 
 func main(){
 	log.Println("Broadcast v1")
 
-	if len(os.Args)  < 2 {
-		log.Println("Usage: program path/to/single_forwarder")	
+	if len(os.Args)  < 3 {
+		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin")	
 		return
 	}
 
 	path = os.Args[1]
+	secretPin = os.Args[2]
 
 	ch := make(chan []string)
+	ch1 := make(chan string)
 
 	activePorts := make([]Ports, 0)
 
 	go ReadFile(ch)
 
 	go LaunchForward(ch, activePorts)
+
+	go StartListeningServer(ch1, secretPin)
+	
+	go ListenForJoiningHosts(ch1)
 
 	select{}
 }
