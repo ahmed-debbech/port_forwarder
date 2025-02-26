@@ -13,8 +13,9 @@ import (
 
 var (
 	path string
-	secretPin string
-	joiningHosts []string
+	secretPins []string
+	joiningHosts map[string]string
+	UnlockPass string
 )
 
 
@@ -141,33 +142,32 @@ func ListenForJoiningHosts(ch chan string){
 
 	for {
 		
-		ip := <- ch
-		
-		found := false
-		for i:=0; i<=len(joiningHosts)-1; i++ {
-			if joiningHosts[i] == ip {
-				found = true
-				break
-			}
-		}
-		if !found {
-			joiningHosts = append(joiningHosts, ip)  
-		}
-		
+		pin_ip := <- ch
+
+		dd := strings.Split(pin_ip, "&")
+
+		joiningHosts[dd[0]] = dd[1]
+
 		log.Println("current joined hosts", joiningHosts)
 	}
+}
+
+func DividSecretPins(pins string) []string{
+	return strings.Split(pins, "-")
 }
 
 func main(){
 	log.Println("Broadcast v1")
 
-	if len(os.Args)  < 3 {
-		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin")	
+	if len(os.Args)  < 4 {
+		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin1-secret_pin2-secret_pin3... unlockPass")	
 		return
 	}
 
+	joiningHosts = make(map[string]string, 0)
 	path = os.Args[1]
-	secretPin = os.Args[2]
+	secretPins = DividSecretPins(os.Args[2])
+	UnlockPass = os.Args[3]
 
 	ch := make(chan []string)
 	ch1 := make(chan string)
@@ -178,7 +178,7 @@ func main(){
 
 	go LaunchForward(ch, activePorts)
 
-	go StartListeningServer(ch1, secretPin)
+	go StartListeningServer(ch1, secretPins)
 	
 	go ListenForJoiningHosts(ch1)
 
