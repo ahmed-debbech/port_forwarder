@@ -160,7 +160,7 @@ func main(){
 	log.Println("Broadcast v1")
 
 	if len(os.Args)  < 4 {
-		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin1-secret_pin2-secret_pin3... unlockPass")	
+		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")	
 		return
 	}
 

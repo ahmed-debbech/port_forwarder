@@ -88,6 +88,12 @@ func ProcessHttpRequest(req *http.Request) http.Response{
 				}
 			}
 		}
+
+
+	case "/data": 
+		
+	break;
+	
 	default: 
 		log.Println("404")
 	}
