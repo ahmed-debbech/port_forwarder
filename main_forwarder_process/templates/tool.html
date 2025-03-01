@@ -1,19 +1,91 @@
-<select>
-    <option> H12345 - 192.168.1.9</option>
-    <option> M12345 - 192.168.1.10</option>
+<label>Online hosts</label>
+<select id="hosts">
 </select>
 
-<table border="1">
-    <tr>
-        <td>HOST</td>
-        <td>PORT</td>
-    </tr>
-    <tr>
-        <td>H12345</td>
-        <td>4905</td>
-    </tr>
-    <tr>
-        <td>M12345</td>
-        <td>4905</td>
-    </tr>
+<h6>Map</h6>
+<table id="map" border="1">
+
 </table>
+<button onclick="add()">add</button>
+<br><br>
+<button onclick="save()">Save Changes</button>
+
+<script>
+    let rowCount = 0;
+
+    function add(){
+        let s ='<tr> <td> <input id="c'+rowCount+'" value=""> </td> <td> <input id="p'+rowCount+'" value=""></td> </tr>'
+        rowCount++
+        $("#map").html($("#map").html() + s)
+    }
+    function save(){
+        let pairs = []
+        for(let i=0; i <=rowCount-1;i++){
+            let pp = {"code" : $("#c"+i).val(), "port" : $("#p"+i).val()}
+            pairs.push(pp)
+        }
+        console.log(pairs)
+
+        let finalPairs = []
+        for(let i=0; i<=pairs.length-1; i++){
+            if(pairs[i].code != "" && pairs[i].port != ""){
+                finalPairs.push(pairs[i])
+            }
+        }
+        $.ajax({
+        type: "POST",
+        url: "/save",
+        data: JSON.stringify(finalPairs),
+        success: function (data) {
+        }})
+    }
+
+    $.ajax({
+        type: "GET",
+        url: "/data",
+        success: function (data) {
+            data = {
+                "devices": [{
+                        "code": "MJE0P0",
+                        "ip": "192.168.1.9"
+                    },
+                    {
+                        "code": "COPI33",
+                        "ip": "192.168.1.10"
+                    }
+                ],
+                "links": [{
+                        "code": "COPI33",
+                        "port": "3943"
+                    },
+                    {
+                        "code": "MJE0P0",
+                        "port": "3332"
+                    },
+                ]
+            }
+
+            let sel = ""
+            for (let i = 0; i <= data.devices.length - 1; i++) {
+                sel += "<option> " + data.devices[i].code + " - "+data.devices[i].ip+"</option>"
+            }
+            $("#hosts").html(sel);
+
+
+            let currentmap = ""
+
+            currentmap += "<tr><td>HOST</td><td>PORT</td></tr>"
+            for (let i = 0; i <= data.links.length - 1; i++) {
+                currentmap += "<tr> <td> <input id=\"c"+rowCount+"\" value=\""+
+                    data.links[i].code+
+                    "\"/> </td> <td> <input id=\"p"+rowCount+"\" value=\""
+                        +data.links[i].port+
+                        "\" /></td> </tr>"
+                rowCount++
+            }
+
+            $("#map").html(currentmap)
+
+        }
+    });
+</script>

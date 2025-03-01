@@ -14,7 +14,7 @@ import (
 var (
 	path string
 	secretPins []string
-	joiningHosts map[string]string
+	JoiningHosts map[string]string
 	UnlockPass string
 )
 
@@ -146,9 +146,9 @@ func ListenForJoiningHosts(ch chan string){
 
 		dd := strings.Split(pin_ip, "&")
 
-		joiningHosts[dd[0]] = dd[1]
+		JoiningHosts[dd[0]] = dd[1]
 
-		log.Println("current joined hosts", joiningHosts)
+		log.Println("current joined hosts", JoiningHosts)
 	}
 }
 
@@ -164,7 +164,7 @@ func main(){
 		return
 	}
 
-	joiningHosts = make(map[string]string, 0)
+	JoiningHosts = make(map[string]string, 0)
 	path = os.Args[1]
 	secretPins = DividSecretPins(os.Args[2])
 	UnlockPass = os.Args[3]

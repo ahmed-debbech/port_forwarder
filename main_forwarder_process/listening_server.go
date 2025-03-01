@@ -10,7 +10,22 @@ import (
 	"io/ioutil"
 	"net/url"
 	"net/http"
+	"encoding/json"
 )
+
+type Device struct{
+	Code string	 `json:"code"`
+	Ip string	`json:"ip"`
+}
+type Link struct {
+	Code string `json:"code"`
+	Port string	`json:"port"`
+}
+
+type Config struct{
+	Devices []Device `json:"devices"`
+	Links []Link	`json:"links"`
+}
 
 func StartListeningServer(ch chan string, secretPins []string){
 	log.Println("listening on 3150")
@@ -35,7 +50,7 @@ func Run(ch chan string, secretPins []string) {
 	}
 }
 
-func ProcessHttpRequest(req *http.Request) http.Response{
+func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 
 	var t http.Response
 
@@ -55,7 +70,12 @@ func ProcessHttpRequest(req *http.Request) http.Response{
 		}
 	case "/save":
 		log.Println("Eee")
-		
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return t
+		}
+		log.Println(string(b))
+
 	case "/unlock":
 		params, _ := url.ParseQuery(req.URL.RawQuery)
 
@@ -90,7 +110,37 @@ func ProcessHttpRequest(req *http.Request) http.Response{
 		}
 
 
-	case "/data": 
+	case "/data":
+		cc := Config{}
+		
+		devices := make([]Device, 0)
+		for i:=0; i<=len(secretPins)-1; i++{
+			el, ok := JoiningHosts[secretPins[i]]
+			dev := Device{}
+			dev.Code = secretPins[i]
+
+			if ok {
+				dev.Ip = el
+			}
+			devices = append(devices, dev)
+		}
+
+		links := make([]Link, 0)
+		for k,v := range JoiningHosts {
+			link := Link{
+				Code: k,
+				Port: v,
+			}
+			links = append(links, link)
+		}
+		cc.Links = links
+		cc.Devices = devices
+
+		data, err := json.Marshal(cc)
+		if err != nil {
+			break;
+		}
+		log.Println(string(data))
 		
 	break;
 	
@@ -109,7 +159,7 @@ func  handleRequest(conn net.Conn, ch chan string, secretPins []string) {
 
 	req, err := http.ReadRequest(reader); 
 	if err == nil {
-		ress := ProcessHttpRequest(req)
+		ress := ProcessHttpRequest(req, secretPins)
 		ress.Write(conn)
 		return
 	}
