@@ -38,7 +38,6 @@
     <script>
         function unlock(text) {
             $(document).ready(function () {
-                alert(text)
                 $.ajax({
                     type: "GET",
                     url: "/unlock?code="+text,

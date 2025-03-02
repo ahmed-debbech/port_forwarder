@@ -44,27 +44,8 @@
         type: "GET",
         url: "/data",
         success: function (data) {
-            data = {
-                "devices": [{
-                        "code": "MJE0P0",
-                        "ip": "192.168.1.9"
-                    },
-                    {
-                        "code": "COPI33",
-                        "ip": "192.168.1.10"
-                    }
-                ],
-                "links": [{
-                        "code": "COPI33",
-                        "port": "3943"
-                    },
-                    {
-                        "code": "MJE0P0",
-                        "port": "3332"
-                    },
-                ]
-            }
 
+            data = JSON.parse(data)
             let sel = ""
             for (let i = 0; i <= data.devices.length - 1; i++) {
                 sel += "<option> " + data.devices[i].code + " - "+data.devices[i].ip+"</option>"

@@ -74,7 +74,25 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 		if err != nil {
 			return t
 		}
-		log.Println(string(b))
+		
+		links := make([]Link, 0)
+		json.Unmarshal(b, &links)
+
+		log.Println(links)
+
+		newContent := ""
+		for _, v := range links {
+			newContent += fmt.Sprintf("%s:%s\n", v.Code, v.Port) 
+		}
+
+		MuPortFile.Lock()
+		
+		err = os.WriteFile("PORTS", []byte(newContent), 0644)
+		if err != nil {
+			log.Println("could not update PORTS with new web changes")
+		}
+		MuPortFile.Unlock()
+
 
 	case "/unlock":
 		params, _ := url.ParseQuery(req.URL.RawQuery)
@@ -126,10 +144,11 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 		}
 
 		links := make([]Link, 0)
-		for k,v := range JoiningHosts {
+		
+		for o:=0; o<=len(PortsFileContent)-1; o+=2 {
 			link := Link{
-				Code: k,
-				Port: v,
+				Code: PortsFileContent[o],
+				Port: PortsFileContent[o+1],
 			}
 			links = append(links, link)
 		}
@@ -141,7 +160,18 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 			break;
 		}
 		log.Println(string(data))
-		
+
+		t = http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Body:          ioutil.NopCloser(bytes.NewBufferString(string(data))),
+			ContentLength: int64(len(data)),
+			Request:       req,
+			Header:        make(http.Header, 0),
+		}
 	break;
 	
 	default: 

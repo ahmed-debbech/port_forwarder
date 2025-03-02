@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"os/exec"
+	"sync"
 )
 
 
@@ -16,6 +17,9 @@ var (
 	secretPins []string
 	JoiningHosts map[string]string
 	UnlockPass string
+	PortsFileContent []string
+    MuPortFile       sync.Mutex
+
 )
 
 
@@ -23,11 +27,14 @@ var (
 func ReadFile(ch chan []string){
 
 	for {
+		MuPortFile.Lock()
+		
 		dat, err := os.ReadFile("PORTS")
 		if err != nil {
 			panic("could not read PORTS files")
 		}
-
+		MuPortFile.Unlock()
+		
 		ls := strings.Split(string(dat), "\n")
 		
 		l := make([]string, 0)
@@ -48,7 +55,7 @@ func ReadFile(ch chan []string){
 }
 type Ports struct {
 	PortNumber string
-	HostIp string
+	HostName string
 	Cmd *exec.Cmd
 }
 
@@ -56,7 +63,8 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 
 	for {
 		hosts := <- ch
-		
+		PortsFileContent = hosts
+
 		//activePorts := make([]string, 0)
 		newPortsToOpen := make([]Ports, 0)
 
@@ -71,7 +79,7 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 			if newPort != "" {
 				ps := Ports{
 					PortNumber: newPort,
-					HostIp: hosts[i],
+					HostName: hosts[i],
 					Cmd: nil,
 				}
 				activePorts = append(activePorts, ps)
@@ -107,9 +115,21 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 }
 
 func runCommand(command Ports, activePorts []Ports){
-	log.Println(command.PortNumber, "new port to open")
 
-	cmd := exec.Command(path, fmt.Sprintf("0.0.0.0:%s", command.PortNumber), fmt.Sprintf("%s:%s", command.HostIp, command.PortNumber))
+	ip, ok := JoiningHosts[command.HostName];
+	if !ok {
+		log.Println(command.HostName, "did not show up online yet! ... will keep waiting for it")
+		found := false
+		for !found {
+			ip, found = JoiningHosts[command.HostName];
+			time.Sleep(time.Second * 5)
+			log.Println("wait", command.HostName)
+		}
+	}
+
+	log.Println(command.PortNumber, "new port to open for ip", ip)
+
+	cmd := exec.Command(path, fmt.Sprintf("0.0.0.0:%s", command.PortNumber), fmt.Sprintf("%s:%s", ip, command.PortNumber))
 
 	for k:=0; k<=len(activePorts)-1; k++{
 		if activePorts[k].PortNumber == command.PortNumber {
