@@ -77,6 +77,9 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				}
 			}
 			if newPort != "" {
+				if _, ok := JoiningHosts[hosts[i]]; !ok {
+					continue;
+				}
 				ps := Ports{
 					PortNumber: newPort,
 					HostName: hosts[i],
@@ -104,9 +107,11 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 			}
 			if !stillexist {
 				//delete Process
-				activePorts[i].Cmd.Process.Kill() 
-				log.Println(activePorts[i], "to delete")
-				activePorts = append(activePorts[:i], activePorts[i+1:]... )
+				if activePorts[i].Cmd != nil {
+					activePorts[i].Cmd.Process.Kill() 
+					log.Println(activePorts[i], "to delete")
+					activePorts = append(activePorts[:i], activePorts[i+1:]... )
+				}
 			}
 		}
 
