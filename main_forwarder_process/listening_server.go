@@ -182,27 +182,29 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 }
 
 func  handleRequest(conn net.Conn, ch chan string, secretPins []string) {
-	reader := bufio.NewReader(conn)
+	//reader := bufio.NewReader(conn)
+
 	reader1 := bufio.NewReader(conn)
 
 	defer conn.Close()
 
-	req, err := http.ReadRequest(reader); 
+	buf := make([]byte, 1024)
+	_, err := reader1.Read(buf)
+	if err != nil {
+		return
+	}
+
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf))); 
 	if err == nil {
 		ress := ProcessHttpRequest(req, secretPins)
 		ress.Write(conn)
 		return
 	}
 
-	buf := make([]byte, 6)
-	
-	_, err = reader1.Read(buf)
-	if err != nil {
-		return
-	}
+	buff := buf[:6]
 	for i:=0; i<=len(secretPins)-1; i++{
 		
-		if string(buf) == secretPins[i] {
+		if string(buff) == secretPins[i] {
 			//get ipv4
 			//send to channel
 			remoteAddr := conn.RemoteAddr()

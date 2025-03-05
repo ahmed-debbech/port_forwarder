@@ -24,8 +24,7 @@ func startProxy(localAddr, remoteAddr string) error {
 			continue
 		}
 
-		go handleConnection(clientConn, "127.0.0.1:8089")
-		go handleConnection(clientConn, "127.0.0.1:8090")
+		go handleConnection(clientConn, remoteAddr)
 	}
 }
 
