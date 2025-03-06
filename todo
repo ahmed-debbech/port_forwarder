@@ -1,2 +1,0 @@
-* make sure when heartbeats are received the PORTS file is updated with the right ips
-*make the /data return the current PORTS file
