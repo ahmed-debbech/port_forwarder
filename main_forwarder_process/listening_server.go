@@ -69,7 +69,6 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 			Header:        make(http.Header, 0),
 		}
 	case "/save":
-		log.Println("Eee")
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			return t

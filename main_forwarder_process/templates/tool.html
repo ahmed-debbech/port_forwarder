@@ -1,14 +1,26 @@
-<label>Online hosts</label>
-<select id="hosts">
-</select>
+<div class="container">
+    <h4 class="text-center">Host Mapping</h4>
 
-<h6>Map</h6>
-<table id="map" border="1">
+    <div class="form-group">
+        <label for="hosts">Online Hosts</label>
+        <select id="hosts" class="form-control"></select>
+    </div>
 
-</table>
-<button onclick="add()">add</button>
-<br><br>
-<button onclick="save()">Save Changes</button>
+    <h6 class="mt-3">Mapping</h6>
+    <table id="map" class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Host</th>
+                <th>Port</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <button class="btn btn-sm btn-primary" onclick="add()">Add Row</button>
+    <button class="btn btn-sm btn-success ml-2" onclick="save()">Save Changes</button>
+</div>
 
 <script>
     let rowCount = 0;

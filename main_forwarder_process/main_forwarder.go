@@ -77,9 +77,6 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				}
 			}
 			if newPort != "" {
-				if _, ok := JoiningHosts[hosts[i]]; !ok {
-					continue;
-				}
 				ps := Ports{
 					PortNumber: newPort,
 					HostName: hosts[i],
@@ -173,7 +170,7 @@ func ListenForJoiningHosts(ch chan string){
 
 		JoiningHosts[dd[0]] = dd[1]
 
-		log.Println("current joined hosts", JoiningHosts)
+		//log.Println("current joined hosts", JoiningHosts)
 	}
 }
 
