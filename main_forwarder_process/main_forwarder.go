@@ -56,6 +56,7 @@ func ReadFile(ch chan []string){
 type Ports struct {
 	PortNumber string
 	HostName string
+	HostIp string
 	Cmd *exec.Cmd
 }
 
@@ -71,7 +72,8 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 		for i:=0; i<=len(hosts)-1; i+=2 {
 			newPort := hosts[i+1]
 			for j:=0; j<=len(activePorts)-1; j++{
-				if hosts[i+1] == activePorts[j].PortNumber  {
+				if hosts[i+1] == activePorts[j].PortNumber &&
+				JoiningHosts[hosts[i]] == activePorts[j].HostIp {
 					newPort = ""
 					break
 				}
@@ -80,24 +82,21 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				ps := Ports{
 					PortNumber: newPort,
 					HostName: hosts[i],
-					Cmd: nil,
+					HostIp: JoiningHosts[hosts[i]],
+					Cmd: nil, 
 				}
 				activePorts = append(activePorts, ps)
 				newPortsToOpen = append(newPortsToOpen, ps)
 			}
 		}
 
-		/// launch activePorts
 
-		for i:=0; i<=len(newPortsToOpen)-1; i++ {
-			go runCommand(newPortsToOpen[i], activePorts)
-		}
-
-		//now delete ports not in the PORTS file
+		//now delete ports not in the PORTS file or that has changed their ips
 		for i:=0; i<=len(activePorts)-1; i++ {
 			stillexist := false
 			for j:=0; j<=len(hosts)-1; j+=2{
-				if activePorts[i].PortNumber == hosts[j+1] {
+				if activePorts[i].PortNumber == hosts[j+1] &&
+				activePorts[i].HostIp == JoiningHosts[hosts[j]]{
 					stillexist = true
 					break
 				}
@@ -106,13 +105,17 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				//delete Process
 				if activePorts[i].Cmd != nil {
 					activePorts[i].Cmd.Process.Kill() 
+					activePorts[i].Cmd.Process.Wait() 
 					log.Println(activePorts[i], "to delete")
 					activePorts = append(activePorts[:i], activePorts[i+1:]... )
 				}
 			}
 		}
 
-
+		/// launch activePorts
+		for i:=0; i<=len(newPortsToOpen)-1; i++ {
+			go runCommand(newPortsToOpen[i], activePorts)
+		}
 	}
 }
 
@@ -170,7 +173,7 @@ func ListenForJoiningHosts(ch chan string){
 
 		JoiningHosts[dd[0]] = dd[1]
 
-		//log.Println("current joined hosts", JoiningHosts)
+		log.Println("current joined hosts", JoiningHosts)
 	}
 }
 
