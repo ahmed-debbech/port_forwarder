@@ -1,0 +1,5 @@
+sudo bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
+
+sudo iptables -t nat -A PREROUTING -p tcp --dport 53000 -j DNAT --to-destination 197.17.120.119:53000
+
+sudo iptables -t nat -A POSTROUTING -p tcp -d 197.17.120.119 -j SNAT --to-source ${ip_gate}

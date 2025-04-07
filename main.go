@@ -11,6 +11,15 @@ import (
 	"sync"
 )
 
+const (
+
+	StartForwardCmd = "sudo bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'"
+
+	AddPreroutingCmd = "sudo iptables -t nat -A PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
+	AddPostroutingCmd = "sudo iptables -t nat -A POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
+	DelPreroutingCmd = "sudo iptables -t nat -D PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
+	DelPostroutingCmd = "sudo iptables -t nat -D POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
+)
 
 var (
 	path string
@@ -22,7 +31,21 @@ var (
 
 )
 
+type Ports struct {
+	PortNumber string
+	HostName string
+	HostIp string
+	CmdStart []string
+	CmdStop []string
+}
 
+func BindCmd(command string, ip_dest string, port_dest string, ip_this string, prot string) string{
+	command = strings.ReplaceAll(command, "$$ip_dest", ip_dest)
+	command = strings.ReplaceAll(command, "$$port_dest", port_dest)
+	command = strings.ReplaceAll(command, "$$ip_this", ip_this)
+	command = strings.ReplaceAll(command, "$$prot", prot)
+	return command
+}
 
 func ReadFile(ch chan []string){
 
@@ -53,12 +76,6 @@ func ReadFile(ch chan []string){
 		time.Sleep(time.Second * 5)
 	}
 }
-type Ports struct {
-	PortNumber string
-	HostName string
-	HostIp string
-	Cmd *exec.Cmd
-}
 
 func LaunchForward(ch chan []string, activePorts []Ports){
 
@@ -79,11 +96,12 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				}
 			}
 			if newPort != "" {
+				cs := []string{ BindCmdX() }
 				ps := Ports{
 					PortNumber: newPort,
 					HostName: hosts[i],
 					HostIp: JoiningHosts[hosts[i]],
-					Cmd: nil, 
+					CmdStart: nil, 
 				}
 				activePorts = append(activePorts, ps)
 				newPortsToOpen = append(newPortsToOpen, ps)
