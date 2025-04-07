@@ -4,10 +4,10 @@ import (
 	"log"
 	"os"
 	_"io"
-	"fmt"
+	_"fmt"
 	"strings"
 	"time"
-	"os/exec"
+	_"os/exec"
 	"sync"
 )
 
@@ -40,10 +40,10 @@ type Ports struct {
 }
 
 func BindCmd(command string, ip_dest string, port_dest string, ip_this string, prot string) string{
-	command = strings.ReplaceAll(command, "$$ip_dest", ip_dest)
-	command = strings.ReplaceAll(command, "$$port_dest", port_dest)
-	command = strings.ReplaceAll(command, "$$ip_this", ip_this)
-	command = strings.ReplaceAll(command, "$$prot", prot)
+	command = strings.ReplaceAll(command, "&&ip_dest", ip_dest)
+	command = strings.ReplaceAll(command, "&&port_dest", port_dest)
+	command = strings.ReplaceAll(command, "&&ip_this", ip_this)
+	command = strings.ReplaceAll(command, "&&prot", prot)
 	return command
 }
 
@@ -89,19 +89,33 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 		for i:=0; i<=len(hosts)-1; i+=2 {
 			newPort := hosts[i+1]
 			for j:=0; j<=len(activePorts)-1; j++{
-				if hosts[i+1] == activePorts[j].PortNumber &&
-				JoiningHosts[hosts[i]] == activePorts[j].HostIp {
+
+				if _, ok := JoiningHosts[hosts[i]]; !ok {
+					newPort = ""
+					break
+				}
+
+				if (hosts[i+1] == activePorts[j].PortNumber &&
+				JoiningHosts[hosts[i]] == activePorts[j].HostIp) {
 					newPort = ""
 					break
 				}
 			}
 			if newPort != "" {
-				cs := []string{ BindCmdX() }
+				cs := []string{ 
+					BindCmd(AddPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+					BindCmd(AddPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+				}
+				ce := []string{ 
+					BindCmd(DelPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+					BindCmd(DelPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+				}
 				ps := Ports{
 					PortNumber: newPort,
 					HostName: hosts[i],
 					HostIp: JoiningHosts[hosts[i]],
-					CmdStart: nil, 
+					CmdStart: cs, 
+					CmdStop: ce,
 				}
 				activePorts = append(activePorts, ps)
 				newPortsToOpen = append(newPortsToOpen, ps)
@@ -120,24 +134,31 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				}
 			}
 			if !stillexist {
-				//delete Process
-				if activePorts[i].Cmd != nil {
+				//delete Port
+				log.Println(activePorts[i].CmdStop[0])
+				log.Println(activePorts[i].CmdStop[1])
+				log.Println(activePorts[i], "to delete")
+				activePorts = append(activePorts[:i], activePorts[i+1:]... )
+				/*if activePorts[i].Cmd != nil {
 					activePorts[i].Cmd.Process.Kill() 
 					activePorts[i].Cmd.Process.Wait() 
 					log.Println(activePorts[i], "to delete")
 					activePorts = append(activePorts[:i], activePorts[i+1:]... )
-				}
+				}*/
 			}
 		}
 
 		/// launch activePorts
 		for i:=0; i<=len(newPortsToOpen)-1; i++ {
-			go runCommand(newPortsToOpen[i], activePorts)
+			//go runCommand(newPortsToOpen[i], activePorts)
+			log.Println("adding new")
+			log.Println(newPortsToOpen[i].CmdStart[0])
+			log.Println(newPortsToOpen[i].CmdStart[1])
 		}
 	}
 }
 
-func runCommand(command Ports, activePorts []Ports){
+/*func runCommand(command Ports, activePorts []Ports){
 
 	ip, ok := JoiningHosts[command.HostName];
 	if !ok {
@@ -180,7 +201,7 @@ func runCommand(command Ports, activePorts []Ports){
 	log.Println(fmt.Sprintf("port %s has been shutdown, bellow are its logs:", command.PortNumber))
 	//log.Println(string(cmdBytes))	
 }
-
+*/
 func ListenForJoiningHosts(ch chan string){
 
 	for {
@@ -202,15 +223,15 @@ func DividSecretPins(pins string) []string{
 func main(){
 	log.Println("Broadcast v1")
 
-	if len(os.Args)  < 4 {
-		log.Println("Usage: main_forwarder path/to/single_forwarder secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")	
+	if len(os.Args)  < 3 {
+		log.Println("Usage: main_forwarder secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")	
 		return
 	}
 
 	JoiningHosts = make(map[string]string, 0)
-	path = os.Args[1]
-	secretPins = DividSecretPins(os.Args[2])
-	UnlockPass = os.Args[3]
+	//path = os.Args[1]
+	secretPins = DividSecretPins(os.Args[1])
+	UnlockPass = os.Args[2]
 
 	ch := make(chan []string)
 	ch1 := make(chan string)
