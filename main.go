@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	path string
+	LocalIp string
 	secretPins []string
 	JoiningHosts map[string]string
 	UnlockPass string
@@ -82,18 +82,21 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 	for {
 		hosts := <- ch
 		PortsFileContent = hosts
-
+		
 		//activePorts := make([]string, 0)
 		newPortsToOpen := make([]Ports, 0)
 
 		for i:=0; i<=len(hosts)-1; i+=2 {
-			newPort := hosts[i+1]
-			for j:=0; j<=len(activePorts)-1; j++{
 
-				if _, ok := JoiningHosts[hosts[i]]; !ok {
-					newPort = ""
-					break
-				}
+			newPort := hosts[i+1]
+			newHost := hosts[i]
+
+			if _, ok := JoiningHosts[newHost]; !ok {
+				newHost = ""
+				continue
+			}
+
+			for j:=0; j<=len(activePorts)-1; j++{
 
 				if (hosts[i+1] == activePorts[j].PortNumber &&
 				JoiningHosts[hosts[i]] == activePorts[j].HostIp) {
@@ -103,12 +106,12 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 			}
 			if newPort != "" {
 				cs := []string{ 
-					BindCmd(AddPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
-					BindCmd(AddPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+					BindCmd(AddPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], LocalIp ,"tcp"),
+					BindCmd(AddPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], LocalIp ,"tcp"),
 				}
 				ce := []string{ 
-					BindCmd(DelPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
-					BindCmd(DelPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], "192.168.1.17" ,"tcp"),
+					BindCmd(DelPreroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], LocalIp ,"tcp"),
+					BindCmd(DelPostroutingCmd, JoiningHosts[hosts[i]], hosts[i+1], LocalIp ,"tcp"),
 				}
 				ps := Ports{
 					PortNumber: newPort,
@@ -137,14 +140,8 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 				//delete Port
 				log.Println(activePorts[i].CmdStop[0])
 				log.Println(activePorts[i].CmdStop[1])
-				log.Println(activePorts[i], "to delete")
+				log.Println(activePorts[i].PortNumber, activePorts[i].HostIp, "to delete")
 				activePorts = append(activePorts[:i], activePorts[i+1:]... )
-				/*if activePorts[i].Cmd != nil {
-					activePorts[i].Cmd.Process.Kill() 
-					activePorts[i].Cmd.Process.Wait() 
-					log.Println(activePorts[i], "to delete")
-					activePorts = append(activePorts[:i], activePorts[i+1:]... )
-				}*/
 			}
 		}
 
@@ -223,15 +220,15 @@ func DividSecretPins(pins string) []string{
 func main(){
 	log.Println("Broadcast v1")
 
-	if len(os.Args)  < 3 {
-		log.Println("Usage: main_forwarder secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")	
+	if len(os.Args)  < 4 {
+		log.Println("Usage: main_forwarder localip secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")	
 		return
 	}
 
 	JoiningHosts = make(map[string]string, 0)
-	//path = os.Args[1]
-	secretPins = DividSecretPins(os.Args[1])
-	UnlockPass = os.Args[2]
+	LocalIp = os.Args[1]
+	secretPins = DividSecretPins(os.Args[2])
+	UnlockPass = os.Args[3]
 
 	ch := make(chan []string)
 	ch1 := make(chan string)
