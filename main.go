@@ -7,18 +7,18 @@ import (
 	_"fmt"
 	"strings"
 	"time"
-	_"os/exec"
+	"os/exec"
 	"sync"
 )
 
 const (
 
-	StartForwardCmd = "sudo bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'"
+	FlushTable = "iptables -F -t nat"
 
-	AddPreroutingCmd = "sudo iptables -t nat -A PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
-	AddPostroutingCmd = "sudo iptables -t nat -A POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
-	DelPreroutingCmd = "sudo iptables -t nat -D PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
-	DelPostroutingCmd = "sudo iptables -t nat -D POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
+	AddPreroutingCmd = "iptables -t nat -A PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
+	AddPostroutingCmd = "iptables -t nat -A POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
+	DelPreroutingCmd = "iptables -t nat -D PREROUTING -p &&prot --dport &&port_dest -j DNAT --to-destination &&ip_dest:&&port_dest"
+	DelPostroutingCmd = "iptables -t nat -D POSTROUTING -p &&prot -d &&ip_dest -j SNAT --to-source &&ip_this"
 )
 
 var (
@@ -78,12 +78,14 @@ func ReadFile(ch chan []string){
 }
 
 func LaunchForward(ch chan []string, activePorts []Ports){
+	
+	enableForwarding()
+	fireIptablesCommands(FlushTable)
 
 	for {
 		hosts := <- ch
 		PortsFileContent = hosts
 		
-		//activePorts := make([]string, 0)
 		newPortsToOpen := make([]Ports, 0)
 
 		for i:=0; i<=len(hosts)-1; i+=2 {
@@ -138,67 +140,37 @@ func LaunchForward(ch chan []string, activePorts []Ports){
 			}
 			if !stillexist {
 				//delete Port
-				log.Println(activePorts[i].CmdStop[0])
-				log.Println(activePorts[i].CmdStop[1])
-				log.Println(activePorts[i].PortNumber, activePorts[i].HostIp, "to delete")
+				fireIptablesCommands(activePorts[i].CmdStop[0])
+				fireIptablesCommands(activePorts[i].CmdStop[1])
+				log.Println("[DELETING]", activePorts[i].HostIp, ":" ,activePorts[i].PortNumber)
 				activePorts = append(activePorts[:i], activePorts[i+1:]... )
 			}
 		}
 
 		/// launch activePorts
 		for i:=0; i<=len(newPortsToOpen)-1; i++ {
-			//go runCommand(newPortsToOpen[i], activePorts)
-			log.Println("adding new")
-			log.Println(newPortsToOpen[i].CmdStart[0])
-			log.Println(newPortsToOpen[i].CmdStart[1])
+			fireIptablesCommands(newPortsToOpen[i].CmdStart[0])
+			fireIptablesCommands(newPortsToOpen[i].CmdStart[1])
+
+			log.Println("[ADDING]", newPortsToOpen[i].HostIp, ":", newPortsToOpen[i].PortNumber)
 		}
 	}
 }
 
-/*func runCommand(command Ports, activePorts []Ports){
-
-	ip, ok := JoiningHosts[command.HostName];
-	if !ok {
-		log.Println(command.HostName, "did not show up online yet! ... will keep waiting for it")
-		found := false
-		for !found {
-			ip, found = JoiningHosts[command.HostName];
-			time.Sleep(time.Second * 5)
-			log.Println("wait", command.HostName)
-		}
+func enableForwarding(){
+	cmd := exec.Command("sh", "-c", "echo 1 > /proc/sys/net/ipv4/ip_forward")
+	if err := cmd.Start(); err != nil {
+		log.Println("could not enable forwarding in kernel")
+		os.Exit(1)
 	}
-
-	log.Println(command.PortNumber, "new port to open for ip", ip)
-
-	cmd := exec.Command(path, fmt.Sprintf("0.0.0.0:%s", command.PortNumber), fmt.Sprintf("%s:%s", ip, command.PortNumber))
-
-	for k:=0; k<=len(activePorts)-1; k++{
-		if activePorts[k].PortNumber == command.PortNumber {
-			activePorts[k].Cmd = cmd
-		}
-	}
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	//cmdOut, _ := cmd.StdoutPipe()
-	err := cmd.Start()
-	if err != nil{
-		log.Println("can't run command for port", command.PortNumber, "because:", err)
-		return
-	}
-	//cmdBytes, _ := io.ReadAll(cmdOut)
-
-	err = cmd.Wait()
-	if err != nil {
-		log.Println("a problem occured in the command for port", command.PortNumber, "because:", err)
-		return
-	}
-
-	log.Println(fmt.Sprintf("port %s has been shutdown, bellow are its logs:", command.PortNumber))
-	//log.Println(string(cmdBytes))	
 }
-*/
+func fireIptablesCommands(command string){
+	cmd := exec.Command("iptables", strings.Split(command, " ")[1:]...)
+	if err := cmd.Start(); err != nil {
+		log.Println("command", command, "is not executing")
+	}
+}
+
 func ListenForJoiningHosts(ch chan string){
 
 	for {
