@@ -26,10 +26,10 @@ To set up the whole system there are two parts.
 
 #### Part I - Server setup:
 1 - Create a file called `PORTS`  \
-2 - Run Roxy on your server, techincally the main_forwarder_process binary. 
-* `./main_forwarder_process /path/to/single_forwarder_bin secret_pin1-secret_pin2... unlock_pass `
+2 - Run Roxy on your server, techincally the main binary. 
+* `./main_forwarder_process your_local_ip secret_pin1-secret_pin2... unlock_pass `
  Knowing that: 
-* arg n1: path to the `single_forwarder_binary` 
+* arg n1: your local ip
 * arg n2: list of `secret_pins` that identifies the hosts (secret pin should be exactly `6` chars seperated by `-` if multiple)
 * arg n3: the password for the dashboard webpage
 

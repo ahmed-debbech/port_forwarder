@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"net/http"
+	"embed"
 	"encoding/json"
 )
 
@@ -26,6 +27,9 @@ type Config struct{
 	Devices []Device `json:"devices"`
 	Links []Link	`json:"links"`
 }
+
+//go:embed templates
+var templatesPath embed.FS
 
 func StartListeningServer(ch chan string, secretPins []string){
 	log.Println("listening on 3150")
@@ -56,7 +60,7 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 
 	switch req.URL.Path {
 	case "/home":
-		dat, _ := os.ReadFile("templates/home.html")
+		dat, _ := templatesPath.ReadFile("templates/home.html")
 		t = http.Response{
 			Status:        "200 OK",
 			StatusCode:    200,
@@ -98,7 +102,7 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 
 		if params.Get("code") != "" {
 			if params.Get("code") == UnlockPass {
-				dat, _ := os.ReadFile("templates/tool.html")
+				dat, _ := templatesPath.ReadFile("templates/tool.html")
 				t = http.Response{
 					Status:        "200 OK",
 					StatusCode:    200,
