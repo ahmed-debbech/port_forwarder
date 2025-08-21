@@ -1,2 +1,0 @@
-* make template folder contained in the final go binary
-* kill process when an ip changes and start a new one
