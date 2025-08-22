@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bufio"
 	_ "fmt"
 	_ "io"
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +25,13 @@ var (
 	UnlockPass       string
 	PortsFileContent []string
 	MuPortFile       sync.Mutex
+	FilePath = "cmd_log"
 )
+
+type PortToCmd struct {
+	Port string 
+	Cmd string
+}
 
 type Ports struct {
 	PortNumber string
@@ -81,7 +85,7 @@ func ReadFile(ch chan []string) {
 func LaunchForward(ch chan []string, activePorts []Ports) {
 
 	enableForwarding()
-	fireIptablesCommands(FlushTable)
+	UndoCachedCommands()
 
 	for {
 		hosts := <-ch
@@ -141,7 +145,9 @@ func LaunchForward(ch chan []string, activePorts []Ports) {
 			if !stillexist {
 				//delete Port
 				fireIptablesCommands(activePorts[i].CmdStop[0])
+				RemoveFromLoggedCmds(activePorts[i].PortNumber+"PRE")
 				fireIptablesCommands(activePorts[i].CmdStop[1])
+				RemoveFromLoggedCmds(activePorts[i].PortNumber+"POST")
 				log.Println("[DELETING]", activePorts[i].HostIp, ":", activePorts[i].PortNumber)
 				activePorts = append(activePorts[:i], activePorts[i+1:]...)
 			}
@@ -149,12 +155,35 @@ func LaunchForward(ch chan []string, activePorts []Ports) {
 
 		/// launch activePorts
 		for i := 0; i <= len(newPortsToOpen)-1; i++ {
-			fireIptablesCommands(newPortsToOpen[i].CmdStart[0])
-			fireIptablesCommands(newPortsToOpen[i].CmdStart[1])
+			success := fireIptablesCommands(newPortsToOpen[i].CmdStart[0])
+			if success {
+				AppendToLoggedCmds(newPortsToOpen[i].PortNumber+"PRE", newPortsToOpen[i].CmdStart[0])
+			}
+			success = fireIptablesCommands(newPortsToOpen[i].CmdStart[1])
+			if success {
+				AppendToLoggedCmds(newPortsToOpen[i].PortNumber+"POST", newPortsToOpen[i].CmdStart[1])
+			}
 
 			log.Println("[ADDING]", newPortsToOpen[i].HostIp, ":", newPortsToOpen[i].PortNumber)
 		}
 	}
+}
+
+func UndoCachedCommands(){
+	file := createOrOpenLoggedCmdsFile()
+	if file != nil {
+		return
+	}
+	defer file.Close()
+
+	data, err := os.ReadFile(FilePath)
+	if err != nil {
+		log.Println("[WARNING] could not read LoggedCmds file to remove commands")
+		return
+	}
+
+	[]PortToCmd structureReadData(data)
+	
 }
 
 func enableForwarding() {
@@ -164,45 +193,111 @@ func enableForwarding() {
 		os.Exit(1)
 	}
 }
-func fireIptablesCommands(command string) {
+func fireIptablesCommands(command string) bool {
 	cmd := exec.Command("iptables", strings.Split(command, " ")[1:]...)
 	if err := cmd.Start(); err != nil {
 		log.Println("command", command, "is not executing")
+		return false
 	}
+	return true
 }
 
-func AppendToLoggedCmds(port int, command string) {
-	filePath := "cmd_log"
+func createOrOpenLoggedCmdsFile() *os.File{
 
-	file, err := os.Open(filePath)
+	file, err := os.OpenFile(FilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend);
 	if err != nil {
 		if os.IsNotExist(err) {
-			file, err = os.Create(filePath)
+			file, err = os.Create(FilePath)
 			if err != nil {
-				log.Printf("Error creating file: %v\n", err)
-				return
+				log.Printf("Error creating Logged Commands file beacuse: %v\n", err)
+				return nil
 			} else {
 				log.Printf("File of Logged commands created.\n")
 			}
 		} else {
-			log.Printf("Error opening file of Logged commands '%s': %v\n", filePath, err)
-			log.Println("[WARNING] command started and added to iptables but NOT logged!")
-			return
+			log.Printf("Error opening file of Logged commands '%s': %v\n", FilePath, err)
+			return nil
 		}
 	}
-	defer file.Close() // Ensure the file is closed when the function exits
+	return file
+}
 
-	w := bufio.NewWriter(file)
-	_, err := w.WriteString(strconv.Itoa(port) + command + "\n")
+func structureReadData(data []byte) []PortToCmd{
+
+	portToCmds := make([]PortToCmd, 0)
+
+	lines := strings.Split(string(data), "\n")
+	for _, v := range lines {
+		if v == "" {continue}
+		ptc := PortToCmd{
+			Port: strings.Split(v, ":")[0],
+			Cmd: strings.Join(strings.Split(v, ":")[1:], ","),
+		}
+		portToCmds = append(portToCmds, ptc)
+	}
+
+	return portToCmds
+}
+
+func structureWriteData(portsToCmdArr []PortToCmd) string{
+
+	finalFileOutput := ""
+	for _, v := range portsToCmdArr {
+		finalFileOutput += v.Port + ":" + v.Cmd +"\n"
+	}
+	return finalFileOutput
+}
+
+
+func RemoveFromLoggedCmds(port string) {
+	file := createOrOpenLoggedCmdsFile()
+	if file == nil {
+		return
+	}
+
+	data, err := os.ReadFile(FilePath)
 	if err != nil {
-		log.Printf("Error opening file of Logged commands '%s': %v\n", filePath, err)
-		log.Println("[WARNING] command started and added to iptables but NOT logged!")
+		log.Println("[WARNING] could not read LoggedCmds file to remove commands")
+		return
+	}
+	file.Close() 
 
+	updatedPortToCmds := structureReadData(data)
+	for _, v := range updatedPortToCmds {
+		if !strings.HasPrefix(v.Port, port) {
+			updatedPortToCmds = append(updatedPortToCmds, v)
+		}
+	}
+
+	finalFileOutput := structureWriteData(updatedPortToCmds)
+
+	err = os.WriteFile(FilePath, []byte(finalFileOutput), 0644)
+	if err != nil {
+		log.Println("[WARNING] could not write LoggedCmds file")
+		return
+	}
+	
+}
+
+func AppendToLoggedCmds(port string, command string) {
+
+	file := createOrOpenLoggedCmdsFile()
+	if file == nil { 
+		log.Println("[WARNING] command started and added to iptables but NOT logged!")
+		return
+	}
+	defer file.Close() 
+
+	_, err := file.WriteString(port + ":" +command + "\n")
+	if err != nil {
+		log.Printf("Error opening file of Logged commands '%s': %v\n", FilePath, err)
+		log.Println("[WARNING] command started and added to iptables but NOT logged!")
 	}
 }
 
 func ListenForJoiningHosts(ch chan string) {
 
+	mapSize := 0
 	for {
 
 		pin_ip := <-ch
@@ -210,8 +305,11 @@ func ListenForJoiningHosts(ch chan string) {
 		dd := strings.Split(pin_ip, "&")
 
 		JoiningHosts[dd[0]] = dd[1]
-
-		log.Println("current joined hosts", JoiningHosts)
+		
+		if mapSize != len(JoiningHosts) {
+			mapSize = len(JoiningHosts)
+			log.Println("current joined hosts", JoiningHosts)
+		}
 	}
 }
 
@@ -223,7 +321,7 @@ func main() {
 	log.Println("Broadcast v1")
 
 	if len(os.Args) < 4 {
-		log.Println("Usage: main_forwarder localip secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")
+		log.Println("Usage: main_forwarder localipWithoutPort secret_pin*6chars-secret_pin2-secret_pin3... unlockPass")
 		return
 	}
 

@@ -13,7 +13,7 @@ func main(){
 	log.Println("Bot started!")
 
 	if len(os.Args) < 4 {
-		log.Println("Usage: go run bot.go yourserverip secretPin refreshRateInSec")
+		log.Println("Usage: go run bot.go yourserveripWithoutPort secretPin refreshRateInSec")
 		return
 	}
 
@@ -38,7 +38,6 @@ func main(){
 			continue
 		}
 
-		log.Println("sent to server!")
 		conn.Close()
 		time.Sleep(time.Second * time.Duration(refreshRate))
 	}

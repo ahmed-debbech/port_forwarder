@@ -27,7 +27,7 @@ To set up the whole system there are two parts.
 #### Part I - Server setup:
 1 - Create a file called `PORTS`  \
 2 - Run Roxy on your server, techincally the main binary. 
-* `./main_forwarder_process your_local_ip secret_pin1-secret_pin2... unlock_pass `
+* `./main_forwarder_process your_local_ip_without_port secret_pin1-secret_pin2... unlock_pass `
  Knowing that: 
 * arg n1: your local ip
 * arg n2: list of `secret_pins` that identifies the hosts (secret pin should be exactly `6` chars seperated by `-` if multiple)
@@ -37,9 +37,9 @@ To set up the whole system there are two parts.
 
 Run the bot executable on your target host, the bot will periodically send its `secret_pin` to the server claiming that is is online, so Roxy can determine its IP address.
 
-* `./bot yourserverip secretPin refreshRateInSec`
+* `./bot yourserveripWithoutPort secretPin refreshRateInSec`
 Knowing that:
-* `yourserverip` is the server ip where Roxy is installed.
+* `yourserveripWithoutPort` is the server ip where Roxy is installed.
 * `secretPin` is the Identifier of the host for Roxy.
 * `refreshRateInSec` is how many seconds the bot takes to send a heartbeat to the server.
 

@@ -178,7 +178,6 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 	break;
 	
 	default: 
-		log.Println("404")
 	}
 
 	return t
