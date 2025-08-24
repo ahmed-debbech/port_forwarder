@@ -1,37 +1,37 @@
 package main
 
 import (
-	"log"
-	"net"
-	"fmt"
 	"bufio"
-	"os"
 	"bytes"
-	"io/ioutil"
-	"net/url"
-	"net/http"
 	"embed"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
 )
 
-type Device struct{
-	Code string	 `json:"code"`
-	Ip string	`json:"ip"`
+type Device struct {
+	Code string `json:"code"`
+	Ip   string `json:"ip"`
 }
 type Link struct {
 	Code string `json:"code"`
-	Port string	`json:"port"`
+	Port string `json:"port"`
 }
 
-type Config struct{
+type Config struct {
 	Devices []Device `json:"devices"`
-	Links []Link	`json:"links"`
+	Links   []Link   `json:"links"`
 }
 
 //go:embed templates
 var templatesPath embed.FS
 
-func StartListeningServer(ch chan string, secretPins []string){
+func StartListeningServer(ch chan string, secretPins []string) {
 	log.Println("listening on 3150")
 
 	Run(ch, secretPins)
@@ -54,7 +54,7 @@ func Run(ch chan string, secretPins []string) {
 	}
 }
 
-func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
+func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response {
 
 	var t http.Response
 
@@ -77,7 +77,7 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 		if err != nil {
 			return t
 		}
-		
+
 		links := make([]Link, 0)
 		json.Unmarshal(b, &links)
 
@@ -85,17 +85,16 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 
 		newContent := ""
 		for _, v := range links {
-			newContent += fmt.Sprintf("%s:%s\n", v.Code, v.Port) 
+			newContent += fmt.Sprintf("%s:%s\n", v.Code, v.Port)
 		}
 
 		MuPortFile.Lock()
-		
+
 		err = os.WriteFile("PORTS", []byte(newContent), 0644)
 		if err != nil {
 			log.Println("could not update PORTS with new web changes")
 		}
 		MuPortFile.Unlock()
-
 
 	case "/unlock":
 		params, _ := url.ParseQuery(req.URL.RawQuery)
@@ -114,7 +113,7 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 					Request:       req,
 					Header:        make(http.Header, 0),
 				}
-			}else{
+			} else {
 				j := "<div>WRONG CODE</div>"
 				t = http.Response{
 					Status:        "200 OK",
@@ -130,12 +129,11 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 			}
 		}
 
-
 	case "/data":
 		cc := Config{}
-		
+
 		devices := make([]Device, 0)
-		for i:=0; i<=len(secretPins)-1; i++{
+		for i := 0; i <= len(secretPins)-1; i++ {
 			el, ok := JoiningHosts[secretPins[i]]
 			dev := Device{}
 			dev.Code = secretPins[i]
@@ -147,8 +145,8 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 		}
 
 		links := make([]Link, 0)
-		
-		for o:=0; o<=len(PortsFileContent)-1; o+=2 {
+
+		for o := 0; o <= len(PortsFileContent)-1; o += 2 {
 			link := Link{
 				Code: PortsFileContent[o],
 				Port: PortsFileContent[o+1],
@@ -160,9 +158,9 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 
 		data, err := json.Marshal(cc)
 		if err != nil {
-			break;
+			break
 		}
-		log.Println(string(data))
+		//log.Println(string(data))
 
 		t = http.Response{
 			Status:        "200 OK",
@@ -175,15 +173,15 @@ func ProcessHttpRequest(req *http.Request, secretPins []string) http.Response{
 			Request:       req,
 			Header:        make(http.Header, 0),
 		}
-	break;
-	
-	default: 
+		break
+
+	default:
 	}
 
 	return t
 }
 
-func  handleRequest(conn net.Conn, ch chan string, secretPins []string) {
+func handleRequest(conn net.Conn, ch chan string, secretPins []string) {
 	//reader := bufio.NewReader(conn)
 
 	reader1 := bufio.NewReader(conn)
@@ -196,7 +194,7 @@ func  handleRequest(conn net.Conn, ch chan string, secretPins []string) {
 		return
 	}
 
-	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf))); 
+	req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(buf)))
 	if err == nil {
 		ress := ProcessHttpRequest(req, secretPins)
 		ress.Write(conn)
@@ -204,19 +202,19 @@ func  handleRequest(conn net.Conn, ch chan string, secretPins []string) {
 	}
 
 	buff := buf[:6]
-	for i:=0; i<=len(secretPins)-1; i++{
-		
+	for i := 0; i <= len(secretPins)-1; i++ {
+
 		if string(buff) == secretPins[i] {
 			//get ipv4
 			//send to channel
-			remoteAddr := conn.RemoteAddr()
+			//remoteAddr := conn.RemoteAddr()
 
 			// Type assert to TCPAddr to get the IP address
-			tcpAddr, ok := remoteAddr.(*net.TCPAddr)
-			if !ok {
-				return
-			}
-			ch <- fmt.Sprintf("%s&%s", secretPins[i], tcpAddr.IP.String())
+			//tcpAddr, ok := remoteAddr.(*net.TCPAddr)
+			//if !ok {
+			//	return
+			//}
+			ch <- fmt.Sprintf("%s&%s", secretPins[i], "127.0.0.1") //tcpAddr.IP.String())
 			break
 		}
 	}

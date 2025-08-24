@@ -25,12 +25,12 @@ var (
 	UnlockPass       string
 	PortsFileContent []string
 	MuPortFile       sync.Mutex
-	FilePath = "cmd_log"
+	FilePath         = "cmd_log"
 )
 
 type PortToCmd struct {
-	Port string 
-	Cmd string
+	Port string
+	Cmd  string
 }
 
 type Ports struct {
@@ -145,9 +145,9 @@ func LaunchForward(ch chan []string, activePorts []Ports) {
 			if !stillexist {
 				//delete Port
 				fireIptablesCommands(activePorts[i].CmdStop[0])
-				RemoveFromLoggedCmds(activePorts[i].PortNumber+"PRE")
+				RemoveFromLoggedCmds(activePorts[i].PortNumber + "PRE")
 				fireIptablesCommands(activePorts[i].CmdStop[1])
-				RemoveFromLoggedCmds(activePorts[i].PortNumber+"POST")
+				RemoveFromLoggedCmds(activePorts[i].PortNumber + "POST")
 				log.Println("[DELETING]", activePorts[i].HostIp, ":", activePorts[i].PortNumber)
 				activePorts = append(activePorts[:i], activePorts[i+1:]...)
 			}
@@ -169,12 +169,7 @@ func LaunchForward(ch chan []string, activePorts []Ports) {
 	}
 }
 
-func UndoCachedCommands(){
-	file := createOrOpenLoggedCmdsFile()
-	if file != nil {
-		return
-	}
-	defer file.Close()
+func UndoCachedCommands() {
 
 	data, err := os.ReadFile(FilePath)
 	if err != nil {
@@ -182,8 +177,14 @@ func UndoCachedCommands(){
 		return
 	}
 
-	[]PortToCmd structureReadData(data)
-	
+	portsToCmds := structureReadData(data)
+	for _, v := range portsToCmds {
+		newCmd := strings.ReplaceAll(v.Cmd, "-A", "-D")
+		log.Println("[UNDOING]", newCmd)
+		fireIptablesCommands(newCmd)
+	}
+
+	os.Truncate(FilePath, 0)
 }
 
 func enableForwarding() {
@@ -202,9 +203,9 @@ func fireIptablesCommands(command string) bool {
 	return true
 }
 
-func createOrOpenLoggedCmdsFile() *os.File{
+func createOrOpenLoggedCmdsFile() *os.File {
 
-	file, err := os.OpenFile(FilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend);
+	file, err := os.OpenFile(FilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		if os.IsNotExist(err) {
 			file, err = os.Create(FilePath)
@@ -222,16 +223,18 @@ func createOrOpenLoggedCmdsFile() *os.File{
 	return file
 }
 
-func structureReadData(data []byte) []PortToCmd{
+func structureReadData(data []byte) []PortToCmd {
 
 	portToCmds := make([]PortToCmd, 0)
 
 	lines := strings.Split(string(data), "\n")
 	for _, v := range lines {
-		if v == "" {continue}
+		if v == "" {
+			continue
+		}
 		ptc := PortToCmd{
 			Port: strings.Split(v, ":")[0],
-			Cmd: strings.Join(strings.Split(v, ":")[1:], ","),
+			Cmd:  v[strings.Index(v, ":")+1:],
 		}
 		portToCmds = append(portToCmds, ptc)
 	}
@@ -239,28 +242,22 @@ func structureReadData(data []byte) []PortToCmd{
 	return portToCmds
 }
 
-func structureWriteData(portsToCmdArr []PortToCmd) string{
+func structureWriteData(portsToCmdArr []PortToCmd) string {
 
 	finalFileOutput := ""
 	for _, v := range portsToCmdArr {
-		finalFileOutput += v.Port + ":" + v.Cmd +"\n"
+		finalFileOutput += v.Port + ":" + v.Cmd + "\n"
 	}
 	return finalFileOutput
 }
 
-
 func RemoveFromLoggedCmds(port string) {
-	file := createOrOpenLoggedCmdsFile()
-	if file == nil {
-		return
-	}
 
 	data, err := os.ReadFile(FilePath)
 	if err != nil {
 		log.Println("[WARNING] could not read LoggedCmds file to remove commands")
 		return
 	}
-	file.Close() 
 
 	updatedPortToCmds := structureReadData(data)
 	for _, v := range updatedPortToCmds {
@@ -276,19 +273,19 @@ func RemoveFromLoggedCmds(port string) {
 		log.Println("[WARNING] could not write LoggedCmds file")
 		return
 	}
-	
+
 }
 
 func AppendToLoggedCmds(port string, command string) {
 
 	file := createOrOpenLoggedCmdsFile()
-	if file == nil { 
+	if file == nil {
 		log.Println("[WARNING] command started and added to iptables but NOT logged!")
 		return
 	}
-	defer file.Close() 
+	defer file.Close()
 
-	_, err := file.WriteString(port + ":" +command + "\n")
+	_, err := file.WriteString(port + ":" + command + "\n")
 	if err != nil {
 		log.Printf("Error opening file of Logged commands '%s': %v\n", FilePath, err)
 		log.Println("[WARNING] command started and added to iptables but NOT logged!")
@@ -305,7 +302,7 @@ func ListenForJoiningHosts(ch chan string) {
 		dd := strings.Split(pin_ip, "&")
 
 		JoiningHosts[dd[0]] = dd[1]
-		
+
 		if mapSize != len(JoiningHosts) {
 			mapSize = len(JoiningHosts)
 			log.Println("current joined hosts", JoiningHosts)

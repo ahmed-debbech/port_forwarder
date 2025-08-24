@@ -1,4 +1,0 @@
-7777PRE:iptables -t nat -A PREROUTING -p tcp --dport 7777 -j DNAT --to-destination 127.0.0.1,7777
-7777POST:iptables -t nat -A POSTROUTING -p tcp -d 127.0.0.1 -j SNAT --to-source 192.168.1.254
-7777PRE:iptables -t nat -A PREROUTING -p tcp --dport 7777 -j DNAT --to-destination 127.0.0.1:7777
-7777POST:iptables -t nat -A POSTROUTING -p tcp -d 127.0.0.1 -j SNAT --to-source 192.168.1.254
