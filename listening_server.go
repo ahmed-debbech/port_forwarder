@@ -207,14 +207,14 @@ func handleRequest(conn net.Conn, ch chan string, secretPins []string) {
 		if string(buff) == secretPins[i] {
 			//get ipv4
 			//send to channel
-			//remoteAddr := conn.RemoteAddr()
+			remoteAddr := conn.RemoteAddr()
 
 			// Type assert to TCPAddr to get the IP address
-			//tcpAddr, ok := remoteAddr.(*net.TCPAddr)
-			//if !ok {
-			//	return
-			//}
-			ch <- fmt.Sprintf("%s&%s", secretPins[i], "127.0.0.1") //tcpAddr.IP.String())
+			tcpAddr, ok := remoteAddr.(*net.TCPAddr)
+			if !ok {
+				return
+			}
+			ch <- fmt.Sprintf("%s&%s", secretPins[i], tcpAddr.IP.String())
 			break
 		}
 	}
